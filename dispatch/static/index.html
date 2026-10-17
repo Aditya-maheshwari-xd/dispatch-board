@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dispatch Board</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#17202b;--muted:#5d6878;--line:#e1e4e9;--accent:#1f4e79;
+--err:#b42318;--errbg:#fde7e5;--warn:#9a6700;--warnbg:#fff4d6;--ok:#1e7b4f;--okbg:#e5f4ec;--shade:rgba(10,15,25,.45)}
+@media (prefers-color-scheme:dark){:root{--bg:#10141a;--card:#1a2029;--ink:#e6eaf0;--muted:#97a3b3;--line:#2a323d;
+--accent:#8db7e8;--err:#ff8a80;--errbg:#43201d;--warn:#e6b450;--warnbg:#3b3218;--ok:#6fcf9f;--okbg:#17352a;--shade:rgba(0,0,0,.6)}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,sans-serif}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+header h1{font-size:17px;margin:0;margin-right:auto}
+main{max-width:1280px;margin:0 auto;padding:16px}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:6px;padding:7px 12px;font:inherit;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--card);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px}
+.tile span{display:block;font-size:12px;color:var(--muted)} .tile b{font-size:22px}
+.tile.bad b{color:var(--err)} .tile.warn b{color:var(--warn)}
+h2{font-size:14px;margin:22px 0 8px;color:var(--accent)}
+.board{display:grid;grid-template-columns:repeat(4,minmax(240px,1fr));gap:12px;overflow-x:auto;padding-bottom:6px}
+.col{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;min-height:120px}
+.col h3{font-size:13px;margin:2px 4px 8px;display:flex;justify-content:space-between;color:var(--muted)}
+.order{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:6px;padding:9px 10px;margin-bottom:8px;cursor:pointer}
+.order:hover{border-color:var(--accent)} .order.overdue{border-left-color:var(--err)}
+.order .top{display:flex;justify-content:space-between;gap:8px} .order .cust{font-weight:600}
+.order .meta{font-size:12px;color:var(--muted)}
+.bar{height:5px;background:var(--line);border-radius:3px;margin-top:7px;overflow:hidden} .bar i{display:block;height:100%;background:var(--accent)}
+.tag{font-size:11px;font-weight:700;padding:1px 6px;border-radius:99px;white-space:nowrap}
+.tag.late{background:var(--errbg);color:var(--err)} .tag.pod{background:var(--warnbg);color:var(--warn)} .tag.ok{background:var(--okbg);color:var(--ok)}
+.split{display:grid;grid-template-columns:1.3fr 1fr;gap:12px} @media (max-width:800px){.split{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;overflow-x:auto}
+table{border-collapse:collapse;width:100%} th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:12px;color:var(--muted);font-weight:600} td.n,th.n{text-align:right;font-variant-numeric:tabular-nums} tr:last-child td{border-bottom:0}
+.muted{color:var(--muted)}
+dialog{border:0;border-radius:10px;padding:0;width:min(760px,calc(100vw - 24px));max-height:calc(100vh - 32px);background:var(--card);color:var(--ink)}
+dialog::backdrop{background:var(--shade)}
+.dlg-head{display:flex;justify-content:space-between;align-items:start;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card)}
+.dlg-body{padding:4px 16px 16px}
+.dlg-body h4{margin:16px 0 6px;font-size:13px;color:var(--accent)}
+label{display:block;font-size:12px;color:var(--muted);margin:8px 0 3px}
+input,select{width:100%;padding:7px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.msg{font-size:13px;margin-top:8px;white-space:pre-wrap} .msg.bad{color:var(--err)} .msg.good{color:var(--ok)}
+.events{font-size:12px;color:var(--muted);margin:0;padding-left:18px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Dispatch Board</h1>
+  <span class="muted" id="today"></span>
+  <button class="btn primary" id="newOrderBtn">+ New order</button>
+</header>
+<main>
+  <div class="tiles" id="tiles"></div>
+  <h2>Orders</h2>
+  <div class="board" id="board"></div>
+  <div class="split">
+    <div><h2>What production still has to make</h2><div class="card"><table id="pendingTable"></table></div></div>
+    <div><h2>Dispatched, POD not received</h2><div class="card"><table id="podTable"></table></div></div>
+  </div>
+  <h2>Closed and cancelled</h2><div class="card"><table id="closedTable"></table></div>
+</main>
+
+<dialog id="orderDlg"><div class="dlg-head"><div><b id="dlgTitle"></b><div class="muted" id="dlgSub"></div></div>
+  <button class="btn" onclick="orderDlg.close()">Close</button></div><div class="dlg-body" id="dlgBody"></div></dialog>
+
+<dialog id="newDlg"><div class="dlg-head"><b>New order</b><button class="btn" onclick="newDlg.close()">Close</button></div>
+<form class="dlg-body" id="newForm">
+  <div class="row"><div><label>Customer</label><input name="customer" required list="custList"></div>
+    <div><label>City</label><input name="city"></div></div>
+  <datalist id="custList"></datalist>
+  <div class="row"><div><label>Customer PO no.</label><input name="po_number" required></div>
+    <div><label>Order date</label><input name="order_date" type="date" required></div>
+    <div><label>Due date</label><input name="due_date" type="date" required></div>
+    <div><label>Qty tolerance %</label><input name="tolerance_pct" type="number" min="0" max="20" step="any" value="0"></div></div>
+  <h4>Items</h4><div id="newLines"></div>
+  <button type="button" class="btn" id="addLine">+ Add item</button>
+  <div class="actions"><button class="btn primary">Save order</button></div><div class="msg"></div>
+</form></dialog>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const num = v => Number(v).toLocaleString("en-IN", {maximumFractionDigits: 3});
+const fdate = iso => iso ? new Date(iso + "T00:00:00").toLocaleDateString("en-IN", {day: "2-digit", month: "short"}) : "—";
+const todayIso = () => new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+let data;
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)} : {});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || (Array.isArray(d.detail) ? d.detail.map(x => x.msg).join("; ") : r.statusText));
+  return d;
+}
+function table(el, cols, rows, empty = "Nothing here") {
+  el.innerHTML = `<thead><tr>${cols.map(c => `<th class="${c[2] || ""}">${c[0]}</th>`).join("")}</tr></thead><tbody>${
+    rows.length ? rows.map(r => `<tr>${cols.map(c => `<td class="${c[2] || ""}">${c[1](r)}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan=${cols.length} class="muted">${empty}</td></tr>`}</tbody>`;
+}
+
+const COLS = [["open", "Not started"], ["partial", "Partly dispatched"], ["in_transit", "Dispatched · POD pending"], ["delivered", "Delivered"]];
+
+function card(o) {
+  const ordered = o.lines.reduce((s, l) => s + l.ordered_qty - l.closed_qty, 0), sent = o.lines.reduce((s, l) => s + l.sent, 0);
+  const pct = ordered ? Math.min(100, Math.round(100 * sent / ordered)) : 0;
+  const tag = o.overdue_days ? `<span class="tag late">${o.overdue_days}d late</span>`
+            : o.stage === "in_transit" ? `<span class="tag pod">POD</span>` : o.stage === "delivered" ? `<span class="tag ok">done</span>` : "";
+  return `<div class="order ${o.overdue_days ? "overdue" : ""}" data-id="${o.id}">
+    <div class="top"><span class="cust">${esc(o.customer)}</span>${tag}</div>
+    <div class="meta">#${o.id} · PO ${esc(o.po_number)} · due ${fdate(o.due_date)}</div>
+    <div class="meta">${o.lines.map(l => `${esc(l.item_code)} ${num(l.sent)}/${num(l.ordered_qty - l.closed_qty)}`).join(" · ")}</div>
+    <div class="bar"><i style="width:${pct}%"></i></div></div>`;
+}
+
+async function load() {
+  data = await api("/api/board");
+  $("#today").textContent = "Today " + fdate(data.today);
+  const c = data.columns, pendingOrders = c.open.length + c.partial.length;
+  $("#tiles").innerHTML = [
+    ["Orders pending", pendingOrders, ""],
+    ["Overdue", data.overdue.length, data.overdue.length ? "bad" : ""],
+    ["Awaiting POD", data.awaiting_pod.length, data.awaiting_pod.length ? "warn" : ""],
+    ["Pending > 15 days", data.aging["16–30 days"] + data.aging["30+ days"], ""],
+  ].map(([k, v, cls]) => `<div class="tile ${cls}"><span>${k}</span><b>${v}</b></div>`).join("");
+  $("#board").innerHTML = COLS.map(([k, label]) =>
+    `<div class="col"><h3><span>${label}</span><span>${c[k].length}</span></h3>${c[k].map(card).join("") || `<div class="muted" style="padding:4px">—</div>`}</div>`).join("");
+  table($("#pendingTable"), [["Item", r => `<b>${esc(r.item_code)}</b> <span class="muted">${esc(r.item_name || "")}</span>`],
+    ["Pending", r => `${num(r.pending)} ${esc(r.uom)}`, "n"], ["Orders", r => r.orders, "n"], ["Earliest due", r => fdate(r.earliest_due)]],
+    data.pending_items, "Nothing pending");
+  table($("#podTable"), [["Invoice", r => `<a href="/dispatches/${r.id}/slip" target="_blank">${esc(r.invoice_no)}</a>`],
+    ["Customer", r => esc(r.customer)], ["Sent", r => fdate(r.dispatch_date)], ["Days", r => r.days_since, "n"],
+    ["", r => `<button class="btn" data-pod="${r.id}">POD received</button>`]], data.awaiting_pod, "All PODs received");
+  table($("#closedTable"), [["#", r => r.id], ["Customer", r => esc(r.customer)], ["PO", r => esc(r.po_number)],
+    ["Status", r => r.stage === "closed" ? "short-closed" : "cancelled"], ["Last note", r => esc(r.events.at(-1)?.event || "")]],
+    [...c.closed, ...c.cancelled], "None");
+  $("#custList").innerHTML = [...new Set(Object.values(c).flat().map(o => o.customer))].map(n => `<option value="${esc(n)}">`).join("");
+}
+
+document.addEventListener("click", async ev => {
+  const o = ev.target.closest(".order");
+  if (o) return openOrder(Number(o.dataset.id));
+  const pod = ev.target.dataset.pod;
+  if (pod) {
+    const when = prompt("Delivery date (YYYY-MM-DD)", todayIso()); if (!when) return;
+    try { await api(`/api/dispatches/${pod}/pod`, {pod_date: when}); await load(); } catch (e) { alert(e.message); }
+  }
+});
+
+async function openOrder(id) {
+  const o = await api(`/api/orders/${id}`);
+  $("#dlgTitle").textContent = `#${o.id} · ${o.customer}`;
+  $("#dlgSub").textContent = `PO ${o.po_number} · ordered ${fdate(o.order_date)} · due ${fdate(o.due_date)}` +
+    (o.overdue_days ? ` · ${o.overdue_days} days late` : "") + (o.tolerance_pct ? ` · ±${o.tolerance_pct}% tolerance` : "");
+  const live = o.stage === "open" || o.stage === "partial";
+  $("#dlgBody").innerHTML = `
+    <h4>Items</h4><div class="card"><table id="lt"></table></div>
+    ${live ? `<h4>Record a dispatch</h4><form id="dispForm">
+      <div class="row">${o.lines.filter(l => l.pending > 0).map(l => `<div><label>${esc(l.item_code)} (pending ${num(l.pending)} ${esc(l.uom)})</label>
+        <input type="number" step="any" min="0" name="q_${esc(l.item_code)}" value="${l.pending}"></div>`).join("")}</div>
+      <div class="row"><div><label>Dispatch date</label><input type="date" name="dispatch_date" value="${todayIso()}" required></div>
+        <div><label>Invoice no.</label><input name="invoice_no" required></div>
+        <div><label>Vehicle no.</label><input name="vehicle_no" placeholder="TN 09 AB 1234"></div>
+        <div><label>Transporter</label><input name="transporter"></div><div><label>LR no.</label><input name="lr_no"></div></div>
+      <div class="actions"><button class="btn primary">Save dispatch</button></div><div class="msg"></div></form>` : ""}
+    <h4>Dispatches</h4><div class="card"><table id="dt"></table></div>
+    ${live ? `<h4>Changes</h4><div class="actions">
+      <button class="btn" id="amendBtn">Change quantity</button><button class="btn" id="closeBtn">Short-close balance</button>
+      ${o.lines.every(l => l.sent === 0) ? `<button class="btn" id="cancelBtn">Cancel order</button>` : ""}</div><div class="msg" id="chgMsg"></div>` : ""}
+    <h4>History</h4><ul class="events">${o.events.map(e => `<li>${esc(e.at)} — ${esc(e.event)}</li>`).join("")}</ul>`;
+  table($("#lt"), [["Item", l => `<b>${esc(l.item_code)}</b> <span class="muted">${esc(l.item_name || "")}</span>`],
+    ["Ordered", l => num(l.ordered_qty), "n"], ["Sent", l => num(l.sent), "n"], ["Short-closed", l => l.closed_qty ? num(l.closed_qty) : "", "n"],
+    ["Pending", l => `<b>${num(l.pending)}</b>`, "n"], ["Unit", l => esc(l.uom)]], o.lines);
+  table($("#dt"), [["Date", d => fdate(d.dispatch_date)], ["Invoice", d => `<a href="/dispatches/${d.id}/slip" target="_blank">${esc(d.invoice_no)}</a>`],
+    ["Vehicle", d => esc(d.vehicle_no || "")], ["Items", d => d.lines.map(x => `${esc(x.item_code)} ${num(x.qty)}`).join(", ")],
+    ["POD", d => d.pod_date ? fdate(d.pod_date) : `<button class="btn" data-pod="${d.id}">Mark received</button>`]], o.dispatches, "Nothing sent yet");
+
+  const f = $("#dispForm");
+  if (f) f.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const fd = new FormData(f), lines = {}, body = {};
+    for (const [k, v] of fd) { if (k.startsWith("q_")) { if (Number(v) > 0) lines[k.slice(2)] = Number(v); } else if (v) body[k] = v; }
+    const msg = $(".msg", f);
+    try { const r = await api(`/api/orders/${id}/dispatches`, {...body, lines});
+          msg.className = "msg good"; msg.innerHTML = `Saved. <a href="${r.slip}" target="_blank">Print dispatch slip</a>`;
+          await load(); setTimeout(() => openOrder(id), 900);
+    } catch (e) { msg.className = "msg bad"; msg.textContent = e.message; }
+  });
+  const change = async (url, body) => {
+    try { await api(url, body); await load(); await openOrder(id); }
+    catch (e) { $("#chgMsg").className = "msg bad"; $("#chgMsg").textContent = e.message; }
+  };
+  $("#amendBtn")?.addEventListener("click", () => {
+    const code = o.lines.length === 1 ? o.lines[0].item_code : prompt("Which item? " + o.lines.map(l => l.item_code).join(", ")); if (!code) return;
+    const qty = prompt(`New ordered quantity for ${code}`); if (!qty) return;
+    const reason = prompt("Reason (e.g. customer revised PO by email)"); if (!reason) return;
+    change(`/api/orders/${id}/amend`, {item_code: code, new_qty: Number(qty), reason});
+  });
+  $("#closeBtn")?.addEventListener("click", () => {
+    const reason = prompt("Why is the balance not needed? (all pending items will be short-closed)"); if (!reason) return;
+    change(`/api/orders/${id}/short-close`, {reason});
+  });
+  $("#cancelBtn")?.addEventListener("click", () => {
+    const reason = prompt("Reason for cancelling"); if (!reason) return;
+    change(`/api/orders/${id}/cancel`, {reason});
+  });
+  if (!orderDlg.open) orderDlg.showModal();
+}
+
+function addLine() {
+  const div = document.createElement("div"); div.className = "row";
+  div.innerHTML = `<div><label>Item code</label><input name="item_code" required></div><div><label>Description</label><input name="item_name"></div>
+    <div><label>Quantity</label><input name="qty" type="number" step="any" min="0" required></div>
+    <div><label>Unit</label><select name="uom"><option>nos</option><option>kg</option><option>m</option><option>set</option></select></div>`;
+  $("#newLines").append(div);
+}
+$("#addLine").addEventListener("click", addLine);
+$("#newOrderBtn").addEventListener("click", () => {
+  $("#newForm").reset(); $("#newLines").innerHTML = ""; addLine();
+  $("#newForm").order_date.value = todayIso(); $(".msg", $("#newForm")).textContent = ""; newDlg.showModal();
+});
+$("#newForm").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  const f = ev.target, msg = $(".msg", f);
+  const body = Object.fromEntries(["customer", "city", "po_number", "order_date", "due_date"].map(k => [k, f[k].value || null]));
+  body.tolerance_pct = Number(f.tolerance_pct.value || 0);
+  body.lines = [...$("#newLines").children].map(r => ({item_code: $("[name=item_code]", r).value, item_name: $("[name=item_name]", r).value || null,
+                                                      qty: Number($("[name=qty]", r).value), uom: $("[name=uom]", r).value}));
+  try { const r = await api("/api/orders", body); newDlg.close(); await load(); openOrder(r.order_id); }
+  catch (e) { msg.className = "msg bad"; msg.textContent = e.message; }
+});
+
+load().catch(e => { $("#board").innerHTML = `<div class="msg bad">Could not load: ${esc(e.message)}</div>`; });
+</script>
+</body>
+</html>
