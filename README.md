@@ -75,7 +75,3 @@ Order status is **derived**, not stored: it's worked out from ordered, short-clo
 - Do customers send schedules (daily call-offs against an open PO) rather than fixed orders? Many auto OEMs do, and that changes "pending".
 - Who confirms POD today — the transporter, the driver's photo on WhatsApp, the customer's GRN? That decides how POD should be captured.
 - Should this connect to the inventory tracker so a dispatch can't exceed finished-goods stock?
-
-## How this was built
-
-Built with Claude (Anthropic) as an AI coding agent. The behaviour for each exception is written down above and covered by tests, so it can be reviewed and changed.
