@@ -56,6 +56,10 @@ API docs at `/docs`. Main endpoints:
 | `POST /api/dispatches/{id}/pod` | proof of delivery received |
 | `GET /dispatches/{id}/slip` | printable slip |
 
+## Deploy (free)
+
+`render.yaml` sets this up as a free web service on [Render](https://render.com): in the Render dashboard choose **New → Blueprint** and pick this repo. Free services sleep after 15 minutes without visitors and take about a minute to wake up. The disk isn't kept between restarts, so each start loads fresh sample orders again.
+
 ## Design
 
 ```

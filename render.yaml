@@ -1,0 +1,16 @@
+# Render deployment (free plan). Render reads this file when you create a "Blueprint".
+#
+# Free services sleep after 15 minutes with no visitors and take about a minute to wake up.
+# The disk is not kept between restarts, so every start loads fresh sample orders, dated
+# relative to today (dispatch.seed skips loading if the database already has orders).
+services:
+  - type: web
+    name: dispatch-board
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m dispatch.seed && uvicorn dispatch.api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/board
+    envVars:
+      - key: PLANT_TZ
+        value: Asia/Kolkata
