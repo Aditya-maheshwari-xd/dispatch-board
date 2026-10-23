@@ -6,6 +6,8 @@ An order-to-delivery board for a manufacturer that ships in part-loads. It answe
 - What's left to send on each order — and what does production still have to make?
 - Which trucks have gone but we don't have the POD yet (so we can't chase payment)?
 
+**Live demo: [dispatch-board-jdcg.onrender.com](https://dispatch-board-jdcg.onrender.com)** (free hosting: the first visit after a quiet spell takes about a minute to wake up, and the sample data resets on restart). API docs: [dispatch-board-jdcg.onrender.com/docs](https://dispatch-board-jdcg.onrender.com/docs).
+
 ![Board](docs/board.png)
 
 ## What it does
